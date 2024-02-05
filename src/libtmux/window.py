@@ -462,11 +462,11 @@ class Window(Obj):
 
         return self
 
-    def set_window_option(
+    def set_option(
         self,
         option: str,
         value: t.Union[int, str],
-        format: t.Optional[bool] = None,
+        _format: t.Optional[bool] = None,
         unset: t.Optional[bool] = None,
         unset_panes: t.Optional[bool] = None,
         prevent_overwrite: t.Optional[bool] = None,
@@ -491,7 +491,7 @@ class Window(Obj):
         :exc:`exc.OptionError`, :exc:`exc.UnknownOption`,
         :exc:`exc.InvalidOption`, :exc:`exc.AmbiguousOption`
         """
-        flags: list[str] = []
+        flags: t.List[str] = []
         if isinstance(value, bool) and value:
             value = "on"
         elif isinstance(value, bool) and not value:
@@ -505,8 +505,8 @@ class Window(Obj):
             assert isinstance(unset_panes, bool)
             flags.append("-U")
 
-        if format is not None and format:
-            assert isinstance(format, bool)
+        if _format is not None and _format:
+            assert isinstance(_format, bool)
             flags.append("-F")
 
         if prevent_overwrite is not None and prevent_overwrite:
@@ -934,6 +934,25 @@ class Window(Obj):
 
         if proc.stderr:
             raise exc.LibTmuxException(proc.stderr)
+
+    def set_window_option(
+        self,
+        option: str,
+        value: t.Union[int, str],
+    ) -> "Window":
+        """Set option for tmux window. Deprecated by :meth:`Window.set_option()`.
+
+        .. deprecated:: 0.26
+
+           Deprecated by :meth:`Window.set_option()`.
+
+        """
+        warnings.warn(
+            "Window.set_window_option() is deprecated",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.set_option(option=option, value=value)
 
     def get(self, key: str, default: t.Optional[t.Any] = None) -> t.Any:
         """Return key-based lookup. Deprecated by attributes.
