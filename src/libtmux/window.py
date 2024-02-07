@@ -14,7 +14,6 @@ import warnings
 from libtmux._internal.query_list import QueryList
 from libtmux.common import has_gte_version, tmux_cmd
 from libtmux.constants import (
-    OPTION_SCOPE_FLAG_MAP,
     RESIZE_ADJUSTMENT_DIRECTION_FLAG_MAP,
     OptionScope,
     ResizeAdjustmentDirection,
@@ -25,7 +24,7 @@ from libtmux.pane import Pane
 from . import exc
 from .common import PaneDict, WindowOptionDict, has_lt_version
 from .formats import FORMAT_SEPARATOR
-from .options import handle_option_error
+from .options import OptionMixin
 
 if t.TYPE_CHECKING:
     from .server import Server
@@ -35,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass()
-class Window(Obj):
+class Window(Obj, OptionMixin):
     """:term:`tmux(1)` :term:`Window` [window_manual]_.
 
     Holds :class:`Pane` objects.
@@ -83,6 +82,7 @@ class Window(Obj):
        https://man.openbsd.org/tmux.1#DESCRIPTION. Accessed April 1st, 2018.
     """
 
+    default_option_scope: t.Optional[OptionScope] = OptionScope.Window
     server: "Server"
 
     def refresh(self) -> None:
@@ -465,235 +465,6 @@ class Window(Obj):
 
         return self
 
-    def set_option(
-        self,
-        option: str,
-        value: t.Union[int, str],
-        _format: t.Optional[bool] = None,
-        unset: t.Optional[bool] = None,
-        unset_panes: t.Optional[bool] = None,
-        prevent_overwrite: t.Optional[bool] = None,
-        suppress_warnings: t.Optional[bool] = None,
-        append: t.Optional[bool] = None,
-        g: t.Optional[bool] = None,
-        scope: t.Optional[OptionScope] = None,
-    ) -> "Window":
-        """Set option for tmux window.
-
-        Wraps ``$ tmux set-option <option> <value>``.
-
-        Parameters
-        ----------
-        option : str
-            option to set, e.g. 'aggressive-resize'
-        value : str
-            window option value. True/False will turn in 'on' and 'off',
-            also accepts string of 'on' or 'off' directly.
-
-        Raises
-        ------
-        :exc:`exc.OptionError`, :exc:`exc.UnknownOption`,
-        :exc:`exc.InvalidOption`, :exc:`exc.AmbiguousOption`
-        """
-        flags: t.List[str] = []
-        if isinstance(value, bool) and value:
-            value = "on"
-        elif isinstance(value, bool) and not value:
-            value = "off"
-
-        if unset is not None and unset:
-            assert isinstance(unset, bool)
-            flags.append("-u")
-
-        if unset_panes is not None and unset_panes:
-            assert isinstance(unset_panes, bool)
-            flags.append("-U")
-
-        if _format is not None and _format:
-            assert isinstance(_format, bool)
-            flags.append("-F")
-
-        if prevent_overwrite is not None and prevent_overwrite:
-            assert isinstance(prevent_overwrite, bool)
-            flags.append("-o")
-
-        if suppress_warnings is not None and suppress_warnings:
-            assert isinstance(suppress_warnings, bool)
-            flags.append("-q")
-
-        if append is not None and append:
-            assert isinstance(append, bool)
-            flags.append("-a")
-
-        if g is not None and g:
-            assert isinstance(g, bool)
-            flags.append("-g")
-
-        if scope is not None:
-            assert scope in OPTION_SCOPE_FLAG_MAP
-            flags.append(
-                OPTION_SCOPE_FLAG_MAP[scope],
-            )
-
-        cmd = self.cmd(
-            "set-option",
-            f"-t{self.session_id}:{self.window_index}",
-            *flags,
-            option,
-            value,
-        )
-
-        if isinstance(cmd.stderr, list) and len(cmd.stderr):
-            handle_option_error(cmd.stderr[0])
-
-        return self
-
-    @t.overload
-    def show_options(
-        self,
-        g: t.Optional[bool],
-        scope: t.Optional[OptionScope],
-        include_hooks: t.Optional[bool],
-        include_parents: t.Optional[bool],
-        values_only: t.Literal[True],
-    ) -> t.List[str]:
-        ...
-
-    @t.overload
-    def show_options(
-        self,
-        g: t.Optional[bool],
-        scope: t.Optional[OptionScope],
-        include_hooks: t.Optional[bool],
-        include_parents: t.Optional[bool],
-        values_only: t.Literal[None] = None,
-    ) -> "WindowOptionDict":
-        ...
-
-    @t.overload
-    def show_options(
-        self,
-        g: t.Optional[bool] = None,
-        scope: t.Optional[OptionScope] = None,
-        include_hooks: t.Optional[bool] = None,
-        include_parents: t.Optional[bool] = None,
-        values_only: t.Literal[False] = False,
-    ) -> "WindowOptionDict":
-        ...
-
-    def show_options(
-        self,
-        g: t.Optional[bool] = False,
-        scope: t.Optional[OptionScope] = OptionScope.Window,
-        include_hooks: t.Optional[bool] = None,
-        include_parents: t.Optional[bool] = None,
-        values_only: t.Optional[bool] = False,
-    ) -> t.Union["WindowOptionDict", t.List[str]]:
-        """Return a dict of options for the window.
-
-        Parameters
-        ----------
-        g : str, optional
-            Pass ``-g`` flag for global variable, default False.
-        """
-        tmux_args: t.Tuple[str, ...] = ()
-
-        if g:
-            tmux_args += ("-g",)
-
-        if scope is not None:
-            assert scope in OPTION_SCOPE_FLAG_MAP
-            tmux_args += (OPTION_SCOPE_FLAG_MAP[scope],)
-
-        if include_parents is not None and include_parents:
-            tmux_args += ("-A",)
-
-        if include_hooks is not None and include_hooks:
-            tmux_args += ("-H",)
-
-        if values_only is not None and values_only:
-            tmux_args += ("-v",)
-
-        cmd = self.cmd("show-options", *tmux_args)
-
-        output = cmd.stdout
-
-        # The shlex.split function splits the args at spaces, while also
-        # retaining quoted sub-strings.
-        #   shlex.split('this is "a test"') => ['this', 'is', 'a test']
-
-        window_options: "WindowOptionDict" = {}
-        for item in output:
-            try:
-                key, val = shlex.split(item)
-            except ValueError:
-                logger.exception(f"Error extracting option: {item}")
-            assert isinstance(key, str)
-            assert isinstance(val, str)
-
-            if isinstance(val, str) and val.isdigit():
-                window_options[key] = int(val)
-
-        return window_options
-
-    def show_option(
-        self,
-        option: str,
-        g: bool = False,
-        scope: t.Optional[OptionScope] = OptionScope.Window,
-        include_hooks: t.Optional[bool] = None,
-        include_parents: t.Optional[bool] = None,
-    ) -> t.Optional[t.Union[str, int]]:
-        """Return option value for the target window.
-
-        todo: test and return True/False for on/off string
-
-        Parameters
-        ----------
-        option : str
-        g : bool, optional
-            Pass ``-g`` flag, global. Default False.
-
-        Raises
-        ------
-        :exc:`exc.OptionError`, :exc:`exc.UnknownOption`,
-        :exc:`exc.InvalidOption`, :exc:`exc.AmbiguousOption`
-        """
-        tmux_args: t.Tuple[t.Union[str, int], ...] = ()
-
-        if g:
-            tmux_args += ("-g",)
-
-        if scope is not None:
-            assert scope in OPTION_SCOPE_FLAG_MAP
-            tmux_args += (OPTION_SCOPE_FLAG_MAP[scope],)
-
-        if include_parents is not None and include_parents:
-            tmux_args += ("-A",)
-
-        if include_hooks is not None and include_hooks:
-            tmux_args += ("-H",)
-
-        tmux_args += (option,)
-
-        cmd = self.cmd("show-options", *tmux_args)
-
-        if len(cmd.stderr):
-            handle_option_error(cmd.stderr[0])
-
-        window_options_output = cmd.stdout
-
-        if not len(window_options_output):
-            return None
-
-        value_raw = next(shlex.split(item) for item in window_options_output)
-
-        value: t.Union[str, int] = (
-            int(value_raw[1]) if value_raw[1].isdigit() else value_raw[1]
-        )
-
-        return value
-
     def rename_window(self, new_name: str) -> "Window":
         """Rename window.
 
@@ -712,8 +483,6 @@ class Window(Obj):
         >>> window.rename_window('New name')
         Window(@1 1:New name, Session($1 ...))
         """
-        import shlex
-
         lex = shlex.shlex(new_name)
         lex.escape = " "
         lex.whitespace_split = False
