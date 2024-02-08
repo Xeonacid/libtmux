@@ -328,7 +328,12 @@ def test_set_and_show_window_options(session: Session) -> None:
 
     # By default, show-options will session scope, even if target is a window
     with pytest.raises(KeyError):
-        assert window.show_options()["main-pane-height"] == 40
+        if window.default_option_scope is None:
+            assert window.show_options()["main-pane-height"] == 40
+        else:
+            assert (
+                window.show_options(scope=OptionScope.Session)["main-pane-height"] == 40
+            )
 
     if has_gte_version("3.0"):
         assert window.show_option("main-pane-height") == 40
