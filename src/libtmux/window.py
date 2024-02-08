@@ -23,8 +23,9 @@ from libtmux.neo import Obj, fetch_obj, fetch_objs
 from libtmux.pane import Pane
 
 from . import exc
-from .common import PaneDict, WindowOptionDict, handle_option_error, has_lt_version
+from .common import PaneDict, WindowOptionDict, has_lt_version
 from .formats import FORMAT_SEPARATOR
+from .options import handle_option_error
 
 if t.TYPE_CHECKING:
     from .server import Server
