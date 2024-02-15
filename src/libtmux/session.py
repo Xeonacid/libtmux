@@ -14,6 +14,7 @@ from libtmux._internal.query_list import QueryList
 from libtmux.common import tmux_cmd
 from libtmux.constants import OptionScope
 from libtmux.formats import FORMAT_SEPARATOR
+from libtmux.hooks import HookMixin
 from libtmux.neo import Obj, fetch_obj, fetch_objs
 from libtmux.options import OptionMixin
 from libtmux.pane import Pane
@@ -36,7 +37,12 @@ logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass()
-class Session(Obj, EnvironmentMixin, OptionMixin):
+class Session(
+    Obj,
+    EnvironmentMixin,
+    OptionMixin,
+    HookMixin,
+):
     """:term:`tmux(1)` :term:`Session` [session_manual]_.
 
     Holds :class:`Window` objects.
@@ -73,6 +79,7 @@ class Session(Obj, EnvironmentMixin, OptionMixin):
     """
 
     default_option_scope: t.Optional[OptionScope] = None
+    default_hook_scope: t.Optional[OptionScope] = None
     server: "Server"
 
     def refresh(self) -> None:
