@@ -179,7 +179,7 @@ def test_custom_options(
     assert session.show_option("@custom-option") == "test"
 
 
-MOCKED_GLOBAL_OPTIONS: t.Dict[str, t.Any] = """
+MOCKED_GLOBAL_OPTIONS: t.List[str] = """
 backspace C-?
 buffer-limit 50
 command-alias[0] split-pane=split-window
