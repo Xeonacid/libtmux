@@ -1,8 +1,12 @@
+import enum
 import re
 import typing as t
 from dataclasses import dataclass, field
 
 from libtmux._internal.dataclasses import SkipDefaultFieldsReprMixin
+
+TerminalFeatures = t.Dict[str, t.List[str]]
+
 
 T = t.TypeVar("T")
 
@@ -44,9 +48,9 @@ class ServerOptions(
     message_limit: t.Optional[int] = field(default=None)
     prompt_history_limit: t.Optional[int] = field(default=None)
     set_clipboard: t.Optional[t.Literal["on", "external", "off"]] = field(default=None)
-    terminal_features: t.Optional[t.Dict[str, t.List[str]]] = field(default=None)
-    terminal_overrides: t.Optional[t.Dict[str, str]] = field(default=None)
-    user_keys: t.Optional[t.Dict[int, str]] = field(default=None)
+    terminal_features: TerminalFeatures = field(default_factory=TerminalFeatures)
+    terminal_overrides: TmuxArray[str] = field(default_factory=TmuxArray)
+    user_keys: TmuxArray[str] = field(default_factory=TmuxArray)
 
     def __init__(self, **kwargs: object) -> None:
         # Convert hyphenated keys to underscored attribute names and assign values
