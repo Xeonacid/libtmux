@@ -1,4 +1,3 @@
-import enum
 import re
 import typing as t
 from dataclasses import dataclass, field
