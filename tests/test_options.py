@@ -216,7 +216,7 @@ class MockedCmdResponse:
 
 
 def cmd_mocked(*args: object) -> MockedCmdResponse:
-    """Mocked cmd."""
+    """Mock command response for show-options -s (server)."""
     return MockedCmdResponse(
         stdout=MOCKED_GLOBAL_OPTIONS,
         stderr=None,
