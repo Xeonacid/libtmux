@@ -1,9 +1,11 @@
 """Helpers for tmux options."""
 import logging
+import re
 import shlex
 import typing as t
 import warnings
 
+from libtmux._internal.constants import TmuxArray
 from libtmux.common import CmdMixin
 from libtmux.constants import (
     DEFAULT_OPTION_SCOPE,
@@ -318,7 +320,28 @@ class OptionMixin(CmdMixin):
         for item in output:
             try:
                 key, val = shlex.split(item)
-            except ValueError:
+                matchgroup = re.match(
+                    r"(?P<hook>[\w-]+)(\[(?P<index>\d+)\])?",
+                    key,
+                )
+                if matchgroup is not None:
+                    match = matchgroup.groupdict()
+                    if match.get("hook") and match.get("index"):
+                        key = match["hook"]
+                        index = int(match["index"])
+                        if key == "terminal-features":
+                            term, features = val.split(":", maxsplit=1)
+                            if options.get(key) is None:
+                                options[key] = {}
+                            options[key][term] = features.split(":")
+                        else:
+                            if options.get(key) is None:
+                                options[key] = TmuxArray()
+                            options[key][index] = val
+                        continue
+            except ValueError:  # empty option (default)
+                key, val = item, None
+            except Exception:
                 logger.warning(f"Error extracting option: {item}")
                 key, val = item, None
             assert isinstance(key, str)
@@ -326,6 +349,8 @@ class OptionMixin(CmdMixin):
 
             if isinstance(val, str) and val.isdigit():
                 options[key] = int(val)
+            else:
+                options[key] = val
 
         return options
 
