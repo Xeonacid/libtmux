@@ -8,6 +8,7 @@ from libtmux._internal.constants import (
     PaneOptions,
     ServerOptions,
     SessionOptions,
+    TmuxArray,
     WindowOptions,
 )
 from libtmux.common import has_gte_version
@@ -151,9 +152,12 @@ def test_options_grid(server: "Server") -> None:
                         expected = _obj_global_options.get(field.name.replace("_", "-"))
                         if include_inherited and expected is None:
                             expected = _obj_global_options.get(
-                                f'{field.name.replace("_", "-")}*'
+                                f'{field.name.replace("_", "-")}*',
+                                None,
                             )
-                        assert getattr(obj_global_options, field.name) == expected, (
+                        assert (
+                            getattr(obj_global_options, field.name, None) == expected
+                        ), (
                             f"Expect {field.name} to be {expected} when "
                             + f"scope={scope}, _global={_global}"
                         )
