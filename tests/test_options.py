@@ -239,3 +239,11 @@ def test_terminal_features(
     options = Options(**_options)
     assert options
     assert options.terminal_features
+    assert options.terminal_features["screen*"] == ["title"]
+    assert options.terminal_features["xterm*"] == [
+        "clipboard",
+        "ccolour",
+        "cstyle",
+        "focus",
+        "title",
+    ]
