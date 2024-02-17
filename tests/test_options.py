@@ -1,5 +1,6 @@
 """Test for libtmux options management."""
 import dataclasses
+import typing as t
 
 import pytest
 
@@ -8,7 +9,6 @@ from libtmux._internal.constants import (
     PaneOptions,
     ServerOptions,
     SessionOptions,
-    TmuxArray,
     WindowOptions,
 )
 from libtmux.common import has_gte_version
@@ -16,6 +16,7 @@ from libtmux.constants import OptionScope
 from libtmux.exc import OptionError
 from libtmux.pane import Pane
 from libtmux.server import Server
+from libtmux.session import Session
 
 
 def test_options(server: "Server") -> None:
@@ -176,3 +177,65 @@ def test_custom_options(
     session = server.new_session(session_name="test")
     session.set_option("@custom-option", "test")
     assert session.show_option("@custom-option") == "test"
+
+
+MOCKED_GLOBAL_OPTIONS: t.Dict[str, t.Any] = """
+backspace C-?
+buffer-limit 50
+command-alias[0] split-pane=split-window
+command-alias[1] splitp=split-window
+command-alias[2] "server-info=show-messages -JT"
+command-alias[3] "info=show-messages -JT"
+command-alias[4] "choose-window=choose-tree -w"
+command-alias[5] "choose-session=choose-tree -s"
+copy-command ''
+default-terminal xterm-256color
+editor vim
+escape-time 50
+exit-empty on
+exit-unattached off
+extended-keys off
+focus-events off
+history-file ''
+message-limit 1000
+prompt-history-limit 100
+set-clipboard external
+terminal-overrides[0] xterm-256color:Tc
+terminal-features[0] xterm*:clipboard:ccolour:cstyle:focus:title
+terminal-features[1] screen*:title
+user-keys
+""".strip().split("\n")
+
+
+@dataclasses.dataclass
+class MockedCmdResponse:
+    """Mocked tmux_cmd response."""
+
+    stdout: t.Optional[t.List[str]]
+    stderr: t.Optional[t.List[str]]
+
+
+def cmd_mocked(*args: object) -> MockedCmdResponse:
+    """Mocked cmd."""
+    return MockedCmdResponse(
+        stdout=MOCKED_GLOBAL_OPTIONS,
+        stderr=None,
+    )
+
+
+def test_terminal_features(
+    server: "Server",
+    session: "Session",
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test tmux's user (custom) options."""
+    from libtmux import server as server_module
+
+    monkeypatch.setattr(server_module, "tmux_cmd", cmd_mocked)
+    monkeypatch.setattr(server, "cmd", cmd_mocked)
+    # monkeypatch.setattr(OptionMixin, "cmd", cmd_mocked)
+    _options = server.show_options()
+    assert any("terminal-features" in k for k in _options)
+    options = Options(**_options)
+    assert options
+    assert options.terminal_features
