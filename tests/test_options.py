@@ -201,7 +201,7 @@ message-limit 1000
 prompt-history-limit 100
 set-clipboard external
 terminal-overrides[0] xterm-256color:Tc
-terminal-features[0] xterm*:clipboard:ccolour:cstyle:focus:title
+terminal-features[0] xterm*:clipboard:ccolour:cstyle:focus
 terminal-features[1] screen*:title
 user-keys
 """.strip().split("\n")
@@ -228,12 +228,8 @@ def test_terminal_features(
     session: "Session",
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Test tmux's user (custom) options."""
-    from libtmux import server as server_module
-
-    monkeypatch.setattr(server_module, "tmux_cmd", cmd_mocked)
+    """Test tmux's terminal-feature option destructuring."""
     monkeypatch.setattr(server, "cmd", cmd_mocked)
-    # monkeypatch.setattr(OptionMixin, "cmd", cmd_mocked)
     _options = server.show_options()
     assert any("terminal-features" in k for k in _options)
     options = Options(**_options)
@@ -245,5 +241,4 @@ def test_terminal_features(
         "ccolour",
         "cstyle",
         "focus",
-        "title",
     ]
