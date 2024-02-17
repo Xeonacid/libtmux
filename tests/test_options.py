@@ -242,3 +242,5 @@ def test_terminal_features(
         "cstyle",
         "focus",
     ]
+
+    assert options.terminal_overrides[0] == "xterm-256color:Tc"
